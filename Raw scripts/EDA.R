@@ -1,3 +1,4 @@
+# Loading in the data
 stepsMonitor <- read.csv(unz("activity.zip", "activity.csv"), header = TRUE)
 
 # Converting date column into the date class

@@ -8,7 +8,7 @@ output:
 # Rmarkdown File Info  
   
 Creation date : 2023-06-26 12:37:00.424316  
-Last modification date : 2023-06-27 13:53:31.769175  
+Last modification date : 2023-06-27 14:11:06.604292  
 Written using R version 4.3.0 (2023-04-21 ucrt) using RStudio IDE  
 Packages used : **dplyr** 1.1.2; **ggplot2** 3.4.2  
   
@@ -401,3 +401,5 @@ ggplot(Imputedstepsbyinterval, aes(time, average, color = weekdays)) +
 
 ![plot of chunk weekdaypattern](figure/weekdaypattern-1.png)
   
+Done by,  
+Akash Mer

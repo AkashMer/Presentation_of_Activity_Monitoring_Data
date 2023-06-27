@@ -236,7 +236,7 @@ Imputedstepsbyinterval$time <- seq(0,1439,5) * 60 #Creates a vector of seconds s
 Imputedstepsbyinterval$time <- as.POSIXct(stepsbyinterval$time, tz = "UTC")
 ```  
   
-```{r weekdaypattern, echo = TRUE, fig.height= 10, fig.width=12}
+```{r weekdaypattern, echo = TRUE, fig.height= 10, fig.width=13}
 ggplot(Imputedstepsbyinterval, aes(time, average, color = weekdays)) +
     # Plots the time series data
     geom_line(linewidth = 1) +
@@ -254,3 +254,5 @@ ggplot(Imputedstepsbyinterval, aes(time, average, color = weekdays)) +
     theme(legend.position = "none")
 ```  
   
+Done by,  
+Akash Mer

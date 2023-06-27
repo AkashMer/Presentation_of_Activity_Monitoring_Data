@@ -1,25 +1,256 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
+title: "Presentation of Activity Monitoring Data"
 output: 
   html_document:
     keep_md: true
----
+---  
+  
+# Rmarkdown File Info  
+  
+Creation date : `r file.info("PA1_template.Rmd")$ctime`  
+Last modification date : `r file.info("PA1_template.Rmd")$mtime`  
+Written using `r R.version.string` using RStudio IDE  
+Packages used : **dplyr** `r packageVersion("dplyr")`; **ggplot2** `r packageVersion("ggplot2")`  
+  
+# Introduction
 
+The data for this project was obtained from a personal activity monitoring device. The device collected data at 5 minute intervals through out the day. The data consists of two months of data from an anonymous individual collected during the months of October and November, 2012 and include the number of steps taken in 5 minute intervals each day.  
+  
+The variables included in the dataset are:  
+  
+* **steps** : Number of steps taking in a 5-minute interval (missing values are coded as NA)\
+* **date** : The date on which the measurement was taken in YYYY-MM-DD format\
+* **interval** : Identifier for the 5-minute interval in which measurement was taken, which is coded as hour pf the day as the first number and minutes of the hour as the next 2 numbers, if the value for hour is zero, then it is not included, for eg. 55 corresponds to 00:55 in HH:MM format and the next number 100 represents 01:00 in HH:MM format, or 1435 represents 14:35 in the HH:MM format  
+  
+The dataset is stored in a comma-separated-value (CSV) file and there are a total of 17,568 observations in this dataset.  
+  
+## Reference
 
-## Loading and preprocessing the data
+The data was made available by the instructors of Reproducible Research course for the purposes of peer assessment course project.  
+  
+# Loading and preprocessing the data
 
+The data set is already present in the repository and can be loaded with the following code and stored in the stepsMonitor object,
 
+```{r loading data, echo=TRUE}
+stepsMonitor <- read.csv(unz("activity.zip", "activity.csv"), header = TRUE)
+head(stepsMonitor)
+str(stepsMonitor)
+```
+  
+Processing of data was done in the following steps,  
+  
+1. **Converting date column into the date class**
+```{r processing1, echo = TRUE}
+stepsMonitor$date <- as.Date(stepsMonitor$date)
+```
+2. **Adding one more column for weekdays corresponding to the dates**  
+```{r processing2, echo = TRUE}
+stepsMonitor$weekdays <- weekdays(stepsMonitor$date)
+```
+3. **Creating 2 tables from the data**  
+    + Summarize the total number of steps per day, NAs are ignored
+    ```{r processing3, echo = TRUE}
+    if(system.file(package = "dplyr") == "") install.packages("dplyr")
+    library(dplyr)
+    stepsbyday <- summarize(stepsMonitor,
+                        total = sum(steps, na.rm = TRUE),
+                        .by = "date")
+    ```
+    + Summarize the average number of steps for each 5 min interval, NAs are ignored
+    ```{r processing4, echo = TRUE}
+    stepsbyinterval <- summarize(stepsMonitor,
+                             average = mean(steps, na.rm = TRUE),
+                             .by = "interval")
+    ```
+    This new data set is changed further by,  
+    Adding another column which represents the time of day
+    ```{r processing5, echo = TRUE}
+    stepsbyinterval$time <- seq(0,1439,5) * 60 #Creates a vector of seconds since 12am
+    ```
+    and then converting it into a POSIXct class to represent time of day.  
+    Date and timezone are just place holders, since this data frame contains average across each day.  
+    ```{r processing6, echo = TRUE}
+    stepsbyinterval$time <- as.POSIXct(stepsbyinterval$time, tz = "UTC")
+    ```
+  
+Thus, the data sets post processing include the following,  
+**stepsMonitor** : Contains the collected data
+```{r processing7, echo = TRUE}
+str(stepsMonitor)
+head(stepsMonitor)
+```  
+**stepsbyday** : Contains the total steps per day with NAs ignored
+```{r processing8, echo = TRUE}
+str(stepsbyday)
+head(stepsbyday)
+```  
+**stepsbyinterval** : Contains the average steps for each 5 minute interval averaged across all days  
+```{r processing9, echo = TRUE}
+str(stepsbyinterval)
+head(stepsbyinterval)
+```  
+  
+# What is mean total number of steps taken per day?  
+  
+```{r meantotalstepsperday, echo = TRUE}
+if(system.file(package = "ggplot2") == "") install.packages("ggplot2")
+library(ggplot2)
+print(ggplot(stepsbyday, aes(total)) +
+    # Plots the histogram
+    geom_histogram(binwidth = 3000, fill = "blue", color = "black") +
+    # Matches the scale ticks to breaks of histogram
+    scale_x_continuous(breaks = seq(min(stepsbyday$total),max(stepsbyday$total), 3000)) +
+    # Adds descriptive title and labels to the axes
+    labs(title = "Distribution of total steps taken per day", x ="Total steps",
+         y = "Counts") +
+    # Changes the theme to black and white and increases the font size
+    theme_bw(base_size = 18))
+```  
+  
+Summary of total number of steps taken per day:  
+```{r, echo = TRUE}
+summary(stepsbyday$total)
+```  
+  
+# What is the average daily activity pattern?  
+  
+```{r dailypattern1, echo = TRUE, fig.width=12}
+ggplot(stepsbyinterval, aes(time, average)) +
+    # Plots the time series data
+    geom_line(color = "#00B0F6", linewidth = 1) +
+    # Changes the x axis ticks to appear every 2 hours and only display HH:MM
+    scale_x_datetime(date_breaks = "2 hour", date_labels = "%H:%M") +
+    # Adds descriptive title and labels to axes
+    labs(title = "Average daily activity pattern", x ="Time of day",
+         y = "Average steps") +
+    # Changes the theme to black and white and increases the font size
+    theme_bw(base_size = 18)
+```  
+  
+5-min Interval with maximum number of steps on average:
+```{r dailypattern2, echo=TRUE}
+maxStepsind <- which.max(stepsbyinterval$average)
+cat(paste0("5-min interval identifier : ",stepsbyinterval$interval[maxStepsind],
+           "\nTime of day : ",format(stepsbyinterval$time[maxStepsind], "%H:%M")))
+```  
+  
+# Imputing missing values  
+  
+Total number of rows with missing values : `r sum(!complete.cases(stepsMonitor))`  
+Thus, missing values account for nearly `r round(mean(!complete.cases(stepsMonitor))*100,2)`% of the data, which is a large percentage and a strategy needs to be formulated to deal with the missing data instead of just ignoring the days and times for which data is missing.  
+  
+## Strategy used for imputing missing values
+**Replace the missing values with the average steps taken for matching day of the week AND the 5-minute interval**  
+The steps involved are,  
+  
+1. Find out average steps taken for each combination of weekday and 5 minute interval
+```{r imputingNA, echo=TRUE}
+stepsbyWeekdayandInterval <- summarize(stepsMonitor,
+                                       average = mean(steps, na.rm = TRUE),
+                                       .by = c("weekdays", "interval"))
+```
+2. Creating the imputed data set
+```{r creatingimputeddata, echo = TRUE}
+ImputedStepsMonitor <- stepsMonitor
+```
+3. Imputing the missing values with the mean matching weekday AND 5 min interval rounded to the nearest whole number since number of steps cannot be in fractions
+```{r editingimputeddata, echo = TRUE}
+ImputedStepsMonitor$steps <- round(mapply(
+    function(steps, weekday, interval) {
+    if(is.na(steps)) {
+        steps <- stepsbyWeekdayandInterval$average[
+            which(stepsbyWeekdayandInterval$weekdays == weekday &
+                      stepsbyWeekdayandInterval$interval == interval)]
+    }
+        else {steps}
+}, ImputedStepsMonitor$steps,
+ImputedStepsMonitor$weekdays,
+ImputedStepsMonitor$interval))
+```  
+  
+## Imputed data set  
+The imputed data set appears as follows and has the same dimensions as the original data set  
+```{r imputeddata, echo = TRUE}
+head(ImputedStepsMonitor)
+str(ImputedStepsMonitor)
+```
+Dimensions of original data set : `r dim(stepsMonitor)`  
+Dimensions of imputed data set : `r dim(ImputedStepsMonitor)`  
+Number of rows with missing values in the imputed data set : `r sum(!complete.cases(ImputedStepsMonitor))`
+  
+## Changes in the histogram and mean and median of total steps per day after imputatation of missing values  
+```{r spreadOfImputedDataset, echo = TRUE}
+# summarizes the total number of steps for each day
+Imputedstepsbyday <- summarise(ImputedStepsMonitor,
+                        total = sum(steps),
+                        .by = "date")
 
-## What is mean total number of steps taken per day?
-
-
-
-## What is the average daily activity pattern?
-
-
-
-## Imputing missing values
-
-
-
-## Are there differences in activity patterns between weekdays and weekends?
+# Histogram of total number of steps taken each day
+print(ggplot(Imputedstepsbyday, aes(total)) +
+    # Plots the histogram
+    geom_histogram(binwidth = 3000, fill = "blue", color = "black") +
+    # Matches the scale ticks to breaks of histogram
+    scale_x_continuous(breaks = seq(min(Imputedstepsbyday$total),
+                                    max(Imputedstepsbyday$total), 3000)) +
+    # Adds descriptive title and labels to the axes
+    labs(title = "Distribution of total steps taken per day after imputation",
+         x ="Total steps",
+         y = "Counts") +
+    # Changes the theme to black and white and increases the font size
+    theme_bw(base_size = 18))
+```  
+  
+Summary of total number of steps taken per day after imputation:  
+```{r, echo = TRUE}
+summary(Imputedstepsbyday$total)
+```  
+  
+Imputing the missing data impacted the total number of steps taken per day in the following manner,  
+  
+\* Average of total number of steps increased  
+\* Median of total number of steps increased  
+\* The minimum total number of steps taken per day are now non-zero and thus a confirmation of the imputation since the minimum total number of steps was most likely the result of the missing values  
+\* The data distribution shifted to the right without any changes in 3rd Quantile or the max total number of steps per day  
+  
+# Are there differences in activity patterns between weekdays and weekends?  
+  
+The following processing steps on the imputed data set need to be done before answering the question,  
+  
+1. **Creating a new factor variable with 2 levels, weekdays and weekends**
+```{r weekdaysFactor, echo = TRUE}
+ImputedStepsMonitor <- ImputedStepsMonitor %>%
+    mutate(weekdays = ifelse(weekdays %in% c("Saturday", "Sunday"),
+                             "Weekends", "Weekdays")) %>%
+    mutate(weekdays = as.factor(weekdays))
+```
+2. **Summarizing the average number of steps for each 5 min interval averaged over weekday days or weekend days**
+```{r average, echo = TRUE}
+Imputedstepsbyinterval <- summarize(ImputedStepsMonitor,
+                             average = mean(steps),
+                             .by = c("interval", "weekdays"))
+# Adding another column to this which represents the time of day
+Imputedstepsbyinterval$time <- seq(0,1439,5) * 60 #Creates a vector of seconds since 12am
+# Convert it into a POSIXct class to represent time
+# Date and timezone are just place holders, since this data frame contains average across each day
+Imputedstepsbyinterval$time <- as.POSIXct(stepsbyinterval$time, tz = "UTC")
+```  
+  
+```{r weekdaypattern, echo = TRUE, fig.height= 10, fig.width=12}
+ggplot(Imputedstepsbyinterval, aes(time, average, color = weekdays)) +
+    # Plots the time series data
+    geom_line(linewidth = 1) +
+    # Separates the weekdays and weekends time series into separate panels
+    facet_wrap(~weekdays, nrow = 2) +
+    # Changes the x axis ticks to appear every 2 hours and only display HH:MM
+    scale_x_datetime(date_breaks = "2 hour", date_labels = "%H:%M") +
+    # Adds descriptive title and labels to axes
+    labs(title = "Differences in activity patterns between weekdays and weekend",
+         x ="Time of day",
+         y = "Average steps") +
+    # Changes the theme to black and white and increases the font size
+    theme_bw(base_size = 18) +
+    # Removes the legend
+    theme(legend.position = "none")
+```  
+  
